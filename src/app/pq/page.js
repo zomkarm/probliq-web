@@ -1,6 +1,7 @@
 "use client";
 
-import { useState,useRef,useCallback, useEffect, useMemo } from "react";
+import React,{useState,useRef,useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import ReactFlow,{
   Background,
   Controls,
@@ -12,7 +13,12 @@ import ReactFlow,{
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useProblemStore } from "@/stores/problemStore";
-
+import WorryEaterSequenceWrapper from '@/components/ui/shared/WorryEaterSequence'
+import { 
+  ChevronLeft, ChevronRight, CheckCircle2, Sparkles, Plus,
+  RefreshCcw, Trash2, Copy, Terminal, Send, X, Timer,
+  Zap, ListOrdered, BarChart3, Target, ShieldAlert,         
+ } from "lucide-react";
 
 function ProblemNode({ id, data }) {
   const [value, setValue] = useState(data.label || "");
@@ -87,64 +93,109 @@ export default function ProbliqUI() {
   const [step, setStep] = useState(0);
 
   return (
-    <div className="min-h-screen w-full bg-[#020617] text-white flex flex-col">
-      {/* Top Progress Bar */}
-      <div className="w-full px-6 pt-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm text-slate-400">
-            Step {step + 1} / {STEPS.length}
-          </div>
-          <div className="text-sm text-slate-500">
-            {STEPS[step].desc}
-          </div>
-        </div>
-
-        <div className="h-[4px] bg-slate-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-indigo-500 transition-all duration-500"
-            style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-          />
-        </div>
+    <div className="min-h-screen w-full bg-[#020617] text-white flex flex-col font-sans selection:bg-indigo-500/30">
+      {/* Dynamic Background Glows */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-blue-600/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-6">
+      {/* Header & Progress Section */}
+      <nav className="relative z-10 w-full px-6 py-8 max-w-7xl mx-auto flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">PROBLIQ</h2>
+              <p className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em]">Module Alpha</p>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-full backdrop-blur-md">
+             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+             <span className="text-xs font-medium text-slate-300">Phase: {STEPS[step].desc}</span>
+          </div>
+        </div>
+
+        {/* Improved Progress Bar */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-end">
+            <span className="text-sm font-bold text-slate-400">
+              STEP <span className="text-white">{step + 1}</span> / {STEPS.length}
+            </span>
+            <span className="text-xs font-semibold text-indigo-400 uppercase tracking-widest">
+              {Math.round(((step + 1) / STEPS.length) * 100)}% Complete
+            </span>
+          </div>
+          <div className="h-2 bg-slate-800/50 rounded-full overflow-hidden border border-white/5 backdrop-blur-sm">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 transition-all duration-700 ease-out shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+              style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+            />
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Stage */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-6">
         <div className="w-full max-w-7xl">
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold m-2">
+          <div className="mb-10 text-center md:text-left">
+            <h1 className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent tracking-tight">
               {STEPS[step].title}
             </h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-slate-400 text-lg max-w-2xl leading-relaxed">
               {getInstruction(step)}
             </p>
           </div>
 
-          <div className="bg-[#020617] border border-slate-800 rounded-xl p-6 shadow-lg">
-            {step === 0 && <DumpUI />}
-            {step === 1 && <DecomposeUI />}
-            {step === 2 && <PriorityUI />}
-            {step === 3 && <TunnelUI />}
+          {/* High-Fidelity Content Container */}
+          <div className="relative group">
+            {/* Outer Decorative Glow */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-blue-500/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition duration-1000" />
+            
+            <div className="relative bg-[#020617]/80 border border-slate-800 rounded-[2rem] p-4 md:p-8 shadow-2xl backdrop-blur-xl ring-1 ring-white/10 overflow-hidden">
+              {/* Internal Grid Pattern */}
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+                   style={{ backgroundImage: `radial-gradient(#fff 1px, transparent 1px)`, backgroundSize: '24px 24px' }} />
+              
+              {/* Logic Check: Step Rendering */}
+              <div className="relative z-10 min-h-[500px]">
+                {step === 0 && <DumpUI />}
+                {step === 1 && <DecomposeUI />}
+                {step === 2 && <PriorityUI />}
+                {step === 3 && <TunnelUI />}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Bottom Navigation */}
-      <div className="px-6 pb-6 mt-2 flex justify-between items-center">
-        <button
-          disabled={step === 0}
-          onClick={() => setStep((s) => s - 1)}
-          className="px-4 py-2 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
-        >
-          Back
-        </button>
+      {/* Floating Bottom Navigation */}
+      <footer className="relative bottom-0 z-50 w-full p-4">
+        <div className="max-w-xl mx-auto bg-slate-900/80 border border-slate-700/50 backdrop-blur-2xl rounded-2xl p-3 flex justify-between items-center shadow-2xl ring-1 ring-white/5">
+          <button
+            disabled={step === 0}
+            onClick={() => setStep((s) => s - 1)}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            Back
+          </button>
 
-        <button
-          onClick={() => setStep((s) => Math.min(s + 1, 3))}
-          className="px-5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 transition cursor-pointer"
-        >
-          {step === 3 ? "Finish" : "Continue"}
-        </button>
-      </div>
+          <button
+            onClick={() => setStep((s) => Math.min(s + 1, 3))}
+            className="flex items-center gap-2 px-8 py-3 rounded-xl bg-white text-[#020617] font-black hover:bg-indigo-50 transition-all shadow-lg active:scale-95 cursor-pointer"
+          >
+            {step === 3 ? (
+              <>Finish <CheckCircle2 className="w-5 h-5" /></>
+            ) : (
+              <>Continue <ChevronRight className="w-5 h-5" /></>
+            )}
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -329,91 +380,102 @@ function DecomposeUI() {
     await navigator.clipboard.writeText(prompt);
   };
 
-  return (
-    <div className="space-y-4">
-
-      {/* Actions */}
-      <div className="flex gap-2 flex-wrap">
+return (
+    <div className="space-y-8">
+      {/* Top Actions: Restore & Clear */}
+      <div className="flex gap-3 flex-wrap">
         <button
           onClick={restoreOriginal}
-          className="px-3 py-1.5 text-sm rounded-md border border-slate-700 text-slate-300"
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl border border-slate-800 bg-slate-900/50 text-slate-400 hover:text-white hover:border-slate-600 transition-all cursor-pointer"
         >
+          <RefreshCcw className="w-3.5 h-3.5" />
           Restore Original
         </button>
 
         <button
           onClick={clearProblems}
-          className="px-3 py-1.5 text-sm rounded-md border border-slate-700 text-slate-300"
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl border border-slate-800 bg-slate-900/50 text-slate-400 hover:text-red-400 hover:border-red-900/50 transition-all cursor-pointer"
         >
+          <Trash2 className="w-3.5 h-3.5" />
           Clear
         </button>
       </div>
 
-      {/* Instruction */}
-      <div className="text-sm text-slate-400">
-        Try to break down problems manually <strong className="text-cyan-400">OR</strong> use the prompt below in your favourite LLM.
-      </div>
-
-      {/* Prompt Box */}
-      <div className="relative">
-        <div className="bg-[#020617] border border-slate-800 rounded-lg p-3 text-xs text-slate-300 whitespace-pre-wrap h-[180px] overflow-y-auto">
-          {prompt}
+      {/* Instruction Header */}
+      <div className="flex items-start gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+        <div className="mt-0.5 p-1.5 rounded-lg bg-indigo-500/20">
+          <Terminal className="w-4 h-4 text-indigo-400" />
         </div>
-
-        {/* optional fade hint at bottom */}
-        <div className="pointer-events-none absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-[#020617] to-transparent rounded-b-lg" />
+        <p className="text-sm text-slate-400 leading-relaxed">
+          Break down problems manually <strong className="text-indigo-400 uppercase tracking-wider text-xs">or</strong> use the AI-optimized prompt below to assist your decomposition.
+        </p>
       </div>
 
-      <button
-        onClick={copyPrompt}
-        className="px-2 py-1 text-xs border m-2 border-slate-700 rounded"
-      >
-        Copy
-      </button>
-
-      {/* Trigger Button */}
-      {!showLLMInput && (
-        <button
-          onClick={() => setShowLLMInput(true)}
-          className="px-3 py-1.5 text-sm rounded-md bg-indigo-500 hover:bg-indigo-600"
-        >
-          Enter LLM Output
-        </button>
-      )}
-
-      {/* Conditional Input */}
-      {showLLMInput && (
-        <div className="space-y-2">
-          <textarea
-            value={llmInput}
-            onChange={(e) => setLlmInput(e.target.value)}
-            className="w-full min-h-[120px] bg-transparent border border-slate-800 rounded-lg p-3 text-sm text-slate-200"
-            placeholder="Paste newline-separated problems here..."
-          />
-
-          <div className="flex gap-2">
-            <button
-              onClick={applyLLMOutput}
-              className="px-3 py-1.5 text-sm rounded-md bg-indigo-500 hover:bg-indigo-600"
-            >
-              Apply
-            </button>
-
-            <button
-              onClick={() => {
-                setShowLLMInput(false);
-                setLlmInput("");
-              }}
-              className="px-3 py-1.5 text-sm rounded-md border border-slate-700 text-slate-300"
-            >
-              Cancel
-            </button>
+      {/* Prompt Box & Copy Section */}
+      <div className="group relative space-y-3">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#020617] shadow-2xl">
+          <div className="p-4 text-[13px] font-mono leading-relaxed text-slate-300 whitespace-pre-wrap h-[180px] overflow-y-auto custom-scrollbar">
+            {prompt}
           </div>
+          {/* Bottom fade for scroll depth */}
+          <div className="pointer-events-none absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#020617] to-transparent" />
         </div>
-      )}
+
+        <button
+          onClick={copyPrompt}
+          className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest rounded-xl bg-white text-slate-900 hover:bg-indigo-50 transition-all active:scale-95 cursor-pointer shadow-lg"
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Copy Prompt
+        </button>
+      </div>
+
+      {/* LLM Interaction Logic */}
+      <div className="pt-4 border-t border-slate-800/50">
+        {!showLLMInput ? (
+          <button
+            onClick={() => setShowLLMInput(true)}
+            className="w-full md:w-auto px-6 py-3 text-sm font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.2)] cursor-pointer"
+          >
+            Enter LLM Output
+          </button>
+        ) : (
+          <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div className="relative">
+              <textarea
+                value={llmInput}
+                onChange={(e) => setLlmInput(e.target.value)}
+                className="w-full min-h-[140px] bg-slate-900/50 border border-indigo-500/30 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl p-4 text-sm text-slate-200 outline-none transition-all placeholder:text-slate-600"
+                placeholder="Paste the generated list here..."
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={applyLLMOutput}
+                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white transition-all cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+                Apply Changes
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowLLMInput(false);
+                  setLlmInput("");
+                }}
+                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-xl border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Canvas */}
-      <div className="relative w-full h-[400px] rounded-xl border border-slate-800 overflow-hidden">
+      <div className="relative w-full h-[450px] rounded-[2rem] border border-slate-800 bg-[#020617]/40 overflow-hidden shadow-inner ring-1 ring-white/5">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -425,7 +487,7 @@ function DecomposeUI() {
           proOptions={{ hideAttribution: true }}
         >
           <Controls />
-          <Background gap={20} size={1} color="#1e293b" />
+          <Background gap={24} size={1} color="#1e293b" variant="dots" className="opacity-40" />
         </ReactFlow>
       </div>
     </div>
@@ -471,95 +533,122 @@ function PriorityUI() {
   }, [problems]);
 
   return (
-    <div className="grid grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
       
       {/* LEFT: Classification */}
-      <div className="space-y-3">
+      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <Target className="w-4 h-4 text-indigo-400" />
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Metric Input</h3>
+        </div>
+
         {problems.map((p) => (
           <div
             key={p.id}
-            className="p-4 border border-slate-800 rounded-lg bg-[#020617]"
+            className="group p-5 border border-slate-800 rounded-2xl bg-slate-900/30 backdrop-blur-sm transition-all hover:border-slate-700 hover:bg-slate-900/50"
           >
-            <div className="text-sm text-slate-200 mb-3">
-              {p.data?.label}
+            <div className="text-sm font-medium text-slate-200 mb-5 leading-relaxed">
+              {p.data?.label || "Untitled Node"}
             </div>
 
-            {/* Priority */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-slate-400 w-16">Priority</span>
-              <button
-                onClick={() => updateField(p.id, "priority", "high")}
-                className={`px-2 py-1 text-xs rounded ${
-                  p.data?.priority === "high"
-                    ? "bg-indigo-500 text-white"
-                    : "border border-slate-700 text-slate-300"
-                }`}
-              >
-                High
-              </button>
-              <button
-                onClick={() => updateField(p.id, "priority", "low")}
-                className={`px-2 py-1 text-xs rounded ${
-                  p.data?.priority === "low"
-                    ? "bg-indigo-500 text-white"
-                    : "border border-slate-700 text-slate-300"
-                }`}
-              >
-                Low
-              </button>
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Priority Control */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Priority</span>
+                <div className="flex p-1 bg-[#020617] rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => updateField(p.id, "priority", "high")}
+                    className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      p.data?.priority === "high"
+                        ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    High
+                  </button>
+                  <button
+                    onClick={() => updateField(p.id, "priority", "low")}
+                    className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      p.data?.priority === "low"
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    Low
+                  </button>
+                </div>
+              </div>
 
-            {/* Friction */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-16">Friction</span>
-              <button
-                onClick={() => updateField(p.id, "friction", "easy")}
-                className={`px-2 py-1 text-xs rounded ${
-                  p.data?.friction === "easy"
-                    ? "bg-indigo-500 text-white"
-                    : "border border-slate-700 text-slate-300"
-                }`}
-              >
-                Easy
-              </button>
-              <button
-                onClick={() => updateField(p.id, "friction", "hard")}
-                className={`px-2 py-1 text-xs rounded ${
-                  p.data?.friction === "hard"
-                    ? "bg-indigo-500 text-white"
-                    : "border border-slate-700 text-slate-300"
-                }`}
-              >
-                Hard
-              </button>
+              {/* Friction Control */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Friction</span>
+                <div className="flex p-1 bg-[#020617] rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => updateField(p.id, "friction", "easy")}
+                    className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      p.data?.friction === "easy"
+                        ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/10"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    Easy
+                  </button>
+                  <button
+                    onClick={() => updateField(p.id, "friction", "hard")}
+                    className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      p.data?.friction === "hard"
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    Hard
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* RIGHT: Stack Output */}
-      <div className="border border-slate-800 rounded-lg p-4 bg-[#020617]">
-        <div className="text-sm text-slate-400 mb-4">
-          Execution Order
+      <div className="sticky top-0 border border-slate-800/60 rounded-[2rem] p-6 bg-[#020617]/60 backdrop-blur-xl ring-1 ring-white/5">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <ListOrdered className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-300">Execution Order</h3>
+          </div>
+          <div className="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 font-bold">
+            Sorted Alpha
+          </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {sorted.map((p, i) => (
             <div
               key={p.id}
-              className="flex items-center gap-3 p-2 border border-slate-800 rounded-md"
+              className="group flex items-center gap-4 p-4 border border-slate-800/40 rounded-2xl bg-slate-900/20 hover:bg-slate-900/40 transition-all shadow-sm"
             >
-              <div className="text-xs text-slate-500 w-5">{i + 1}</div>
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-black text-indigo-500 group-hover:border-indigo-500/30 transition-colors">
+                {i + 1}
+              </div>
 
-              <div className="flex-1 text-sm text-slate-200">
+              <div className="flex-1 text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
                 {p.data?.label}
               </div>
 
-              <div className="text-[10px] text-slate-400">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-[10px] font-black uppercase tracking-tighter text-slate-500 group-hover:text-slate-400 transition-colors">
+                <BarChart3 className="w-3 h-3" />
                 {getLabel(p)}
               </div>
             </div>
           ))}
+
+          {sorted.length === 0 && (
+            <div className="py-20 text-center space-y-3">
+              <Zap className="w-8 h-8 text-slate-700 mx-auto" />
+              <p className="text-xs text-slate-600 font-medium">Add and classify problems to see your sequence.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -606,77 +695,79 @@ function TunnelUI() {
     );
   }
 
-  return (
-    <div className="max-w-xl mx-auto space-y-6">
-
+return (
+    <div className="max-w-2xl mx-auto space-y-10 py-10">
       {/* 5-second trigger */}
-      <div className="text-xs text-slate-500 text-center">
-        Start within 5 seconds. Do not overthink.
+      <div className="flex flex-col items-center gap-3 animate-pulse">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+          <Timer className="w-3 h-3 text-amber-500" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80">Hyper-Focus Mode</span>
+        </div>
+        <p className="text-xs text-slate-500 font-medium">
+          Start within <span className="text-slate-300">5 seconds</span>. Do not overthink.
+        </p>
       </div>
 
       {/* Task Card */}
-      <div className="p-6 border border-slate-800 rounded-xl bg-[#020617] text-center">
-        <div className="text-sm text-slate-400 mb-2">
-          Task {index + 1}
-        </div>
-
-        <div className="text-lg text-slate-200 font-medium">
-          {current.data?.label}
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2.5rem] blur opacity-10 transition duration-1000"></div>
+        <div className="relative p-10 border border-slate-800 rounded-[2rem] bg-[#020617] text-center shadow-2xl">
+          <div className="inline-block px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">
+            Current Mission: {index + 1}
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+            {current.data?.label || "Untitled Task"}
+          </h2>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="space-y-3">
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
           onClick={() => setShowFear(true)}
-          className="w-full px-4 py-2 text-sm rounded-lg border border-slate-700 text-slate-300 cursor-pointer"
+          className="order-2 sm:order-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold rounded-2xl border border-slate-800 text-slate-500 hover:text-rose-400 transition-all cursor-pointer"
         >
+          <ShieldAlert className="w-4 h-4" />
           Something is stopping me
         </button>
 
         <button
           onClick={handleDone}
-          className="w-full px-4 py-2 text-sm rounded-lg bg-indigo-500 hover:bg-indigo-600"
+          className="order-1 sm:order-2 flex items-center justify-center gap-2 px-6 py-4 text-sm font-black uppercase tracking-widest rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_30px_rgba(79,70,229,0.4)] cursor-pointer"
         >
+          <CheckCircle2 className="w-5 h-5" />
           DONE
         </button>
       </div>
 
-      {/* Fear Modal */}
-      {showFear && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="w-full max-w-3xl bg-[#020617] border border-slate-800 rounded-xl p-5 space-y-4">
-            
-            <div className="text-sm text-slate-300">
-              What is stopping you?
-            </div>
-
-            <textarea
-              value={fearText}
-              onChange={(e) => setFearText(e.target.value)}
-              className="w-full min-h-[400px] bg-transparent border border-slate-800 rounded-lg p-3 text-sm text-slate-200"
-              placeholder="Name the fear..."
-            />
-
-            <div className="flex gap-2">
-              <button
-                onClick={consumeFear}
-                className="flex-1 px-3 py-2 text-sm rounded-lg bg-indigo-500 hover:bg-indigo-600"
-              >
-                Clear It
-              </button>
-
-              <button
-                onClick={() => setShowFear(false)}
-                className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-700 text-slate-300"
-              >
-                Cancel
-              </button>
-            </div>
-
+      {/* PORTALED FEAR OVERLAY */}
+      {showFear && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-[#020617] flex flex-col overflow-hidden">
+          {/* Close button UI */}
+          <div className="absolute top-8 right-8 z-[10000]">
+            <button
+              onClick={() => {
+                setFearText("");
+                setShowFear(false);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shadow-2xl"
+            >
+              <X className="w-4 h-4" />
+              Exit Void
+            </button>
           </div>
-        </div>
+
+          <div className="flex-1 w-full h-full">
+            <WorryEaterSequenceWrapper
+              initialText={fearText}
+              onComplete={() => {
+                setFearText("");
+                setShowFear(false);
+              }}
+            />
+          </div>
+        </div>,
+        document.body // This tells React to move the HTML to the very end of the <body>
       )}
     </div>
   );
