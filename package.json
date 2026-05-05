@@ -9,18 +9,30 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "crypto": "^1.0.1",
     "framer-motion": "^12.38.0",
+    "jose": "^6.2.3",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
+    "nodemailer": "^8.0.7",
+    "pg": "^8.20.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "reactflow": "^11.11.4",
+    "sonner": "^2.0.7",
+    "uuid": "^14.0.0",
+    "validator": "^13.15.35",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "prisma": "^7.8.0",
     "tailwindcss": "^4"
   }
 }

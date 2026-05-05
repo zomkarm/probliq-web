@@ -12,7 +12,7 @@ import ReactFlow,{
   Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useProblemStore } from "@/stores/problemStore";
+import { useProblemStore } from "@/store/problemStore";
 import WorryEaterSequenceWrapper from '@/components/ui/shared/WorryEaterSequence'
 import { 
   ChevronLeft, ChevronRight, CheckCircle2, Sparkles, Plus,
