@@ -1,18 +1,18 @@
 "use client";
 
-import { useProblemStore } from "@/store/problemStore";
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import WorryEaterSequenceWrapper from '@/components/ui/shared/WorryEaterSequence'
 import { Timer, ShieldAlert, CheckCircle2, X } from "lucide-react";
-
-
+import { toast } from "sonner";
+import { useRouter } from 'next/navigation'
 
 export default function ProblemSetList() {
   const [sets, setSets] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   // fetch list
   useEffect(() => {
@@ -51,6 +51,7 @@ export default function ProblemSetList() {
             label: n.label,
             priority: n.priority,
             friction: n.friction,
+            completed: n.completed || false,
           },
         }));
 
@@ -73,14 +74,27 @@ export default function ProblemSetList() {
 
   // show execution UI
   if (selectedId && data) {
-    return <ProblemSets problems={data} />;
+    return <ProblemSets problems={data} setId={selectedId}
+             onBack={() => {
+                setSelectedId(null);
+                setData(null);
+              }} />;
   }
 
   // list UI
   return (
     <div className="min-h-screen bg-[#020617] text-white px-6 py-10">
       <div className="max-w-4xl mx-auto space-y-6">
-        <h1 className="text-3xl font-black">Your Problem Sets</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-black">Your Problem Sets</h1>
+
+          <button
+            onClick={() => router.push("/user/home")}
+            className="text-xs text-slate-500 hover:text-white cursor-pointer"
+          >
+            ← Main Menu
+          </button>
+        </div>
 
         <div className="grid gap-4">
           {sets.map((set) => (
@@ -107,13 +121,13 @@ export default function ProblemSetList() {
   );
 }
 
-function ProblemSets({ problems }) {
+function ProblemSets({ problems, setId, onBack }) {
 
-  const [index, setIndex] = useState(0);
+  const [items, setItems] = useState(problems);
   const [showFear, setShowFear] = useState(false);
   const [fearText, setFearText] = useState("");
+  const [mode, setMode] = useState("welcome"); 
 
-  // same sorting logic as step 3
   const getScore = (p) => {
     const { priority, friction } = p.data || {};
     if (priority === "high" && friction === "easy") return 1;
@@ -123,26 +137,59 @@ function ProblemSets({ problems }) {
   };
 
   const sorted = useMemo(() => {
-    return [...problems].sort((a, b) => getScore(a) - getScore(b));
-  }, [problems]);
+    return [...items].sort((a, b) => getScore(a) - getScore(b));
+  }, [items]);
 
-  const current = sorted[index];
+  const currentIndex = useMemo(() => {
+    return sorted.findIndex((p) => !p.data.completed);
+  }, [sorted]);
 
-  const handleDone = () => {
-    setIndex((i) => i + 1);
-  };
+  const current = currentIndex === -1 ? null : sorted[currentIndex];
 
-  const handleDoneNEW = async () => {
+  const handleDone = async () => {
     try {
-      await fetch(`/api/problem-set/${setId}`, {
+      const res = await fetch(`/api/problem-set/${setId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nodeId: current.id }),
       });
 
-      setIndex((i) => i + 1);
+      const json = await res.json();
+
+      if (res.status === 409) {
+        toast.error("Already completed");
+
+        // force sync local state
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === current.id
+              ? { ...p, data: { ...p.data, completed: true } }
+              : p
+          )
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        toast.error("Failed to update");
+        return;
+      }
+
+      // success
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === current.id
+            ? { ...p, data: { ...p.data, completed: true } }
+            : p
+        )
+      );
+
+      setMode("completed");
+
+      toast.success("Marked done");
+
     } catch (err) {
-      console.error("Failed to update progress", err);
+      toast.error("Network error");
     }
   };
 
@@ -151,90 +198,172 @@ function ProblemSets({ problems }) {
     setShowFear(false);
   };
 
+
   if (!current) {
     return (
-      <div className="flex items-center justify-center h-[200px] text-slate-400">
-        All tasks completed.
+      <div className="h-screen flex flex-col items-center justify-center gap-6 text-slate-400">
+        <span>All tasks completed.</span>
+
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-6 py-3 text-sm font-black uppercase tracking-widest rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white"
+        >
+          <CheckCircle2 className="w-5 h-5" />
+          Back to Problem Sets
+        </button>
       </div>
     );
   }
 
-return (
-    <div className="max-w-2xl mx-auto space-y-10 py-10">
-      {/* 5-second trigger */}
-      <div className="flex flex-col items-center gap-3 animate-pulse">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-          <Timer className="w-3 h-3 text-amber-500" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80">Hyper-Focus Mode</span>
-        </div>
-        <p className="text-xs text-slate-500 font-medium">
-          Start within <span className="text-slate-300">5 seconds</span>. Do not overthink.
-        </p>
-      </div>
+  if (mode === "welcome") {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-6 text-slate-400">
+        <h2 className="text-xl font-bold text-white">Welcome back, Good to see you </h2>
 
-      {/* Task Card */}
-      <div className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2.5rem] blur opacity-10 transition duration-1000"></div>
-        <div className="relative p-10 border border-slate-800 rounded-[2rem] bg-[#020617] text-center shadow-2xl">
-          <div className="inline-block px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">
-            Current Mission: {index + 1}
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-            {current.data?.label || "Untitled Task"}
-          </h2>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
-          onClick={() => setShowFear(true)}
-          className="order-2 sm:order-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold rounded-2xl border border-slate-800 text-slate-500 hover:text-rose-400 transition-all cursor-pointer"
+          onClick={() => setMode("active")}
+          className="px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold"
         >
-          <ShieldAlert className="w-4 h-4" />
-          Something is stopping me
+          Let’s Continue
         </button>
 
         <button
-          onClick={handleDone}
-          className="order-1 sm:order-2 flex items-center justify-center gap-2 px-6 py-4 text-sm font-black uppercase tracking-widest rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_30px_rgba(79,70,229,0.4)] cursor-pointer"
+          onClick={onBack}
+          className="text-xs text-slate-500"
         >
-          <CheckCircle2 className="w-5 h-5" />
-          DONE
+          Back
         </button>
       </div>
+    );
+  }
 
-      {/* PORTALED FEAR OVERLAY */}
-      {showFear && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-[#020617] flex flex-col overflow-hidden">
-          {/* Close button UI */}
-          <div className="absolute top-8 right-8 z-[10000]">
-            <button
-              onClick={() => {
-                setFearText("");
-                setShowFear(false);
-              }}
-              className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shadow-2xl"
-            >
-              <X className="w-4 h-4" />
-              Exit Void
-            </button>
+  if (mode === "completed") {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-6 text-slate-400">
+        <h2 className="text-xl font-bold text-white">
+          Task completed, Congrats
+        </h2>
+
+        <div className="flex gap-4">
+          <button
+            onClick={() => setMode("active")}
+            className="px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold cursor-pointer"
+          >
+            Let's Continue
+          </button>
+
+          <button
+            onClick={onBack}
+            className="px-6 py-3 rounded-xl border border-slate-700 text-slate-400 cursor-pointer"
+          >
+            Later
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "active") {
+    return (
+      <div className="max-w-2xl mx-auto space-y-12 py-12">
+        <div className="flex justify-start">
+          <button
+            onClick={onBack}
+            className="text-xs text-slate-500 hover:text-white cursor-pointer"
+          >
+            ← Back to sets
+          </button>
+        </div>
+        
+        {/* Header Signal */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+            <Timer className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">
+              Active Set
+            </span>
           </div>
 
-          <div className="flex-1 w-full h-full">
-            <WorryEaterSequenceWrapper
-              initialText={fearText}
-              onComplete={() => {
-                setFearText("");
-                setShowFear(false);
-              }}
-            />
+          <p className="text-sm text-slate-500">
+            Focus on one problem. Ignore everything else.
+          </p>
+        </div>
+
+        {/* Task Card */}
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-600/20 rounded-[2.5rem] blur-xl opacity-60" />
+
+          <div className="relative p-10 border border-slate-800 rounded-[2rem] bg-[#020617]/90 text-center shadow-2xl backdrop-blur-xl">
+            
+            <div className="mb-6 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                {/*Task {currentIndex + 1} / {sorted.length}*/}Todays Problem to Tackle
+              </span>
+            </div>
+
+            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight tracking-tight">
+              {current.data?.label || "Untitled Task"}
+            </h2>
+
+            <p className="mt-4 text-xs text-slate-600">
+              Execute. Don’t evaluate.
+            </p>
           </div>
-        </div>,
-        document.body // This tells React to move the HTML to the very end of the <body>
-      )}
-    </div>
-  );
+        </div>
+
+        {/* Actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <button
+            onClick={() => setShowFear(true)}
+            className="flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold rounded-2xl border border-slate-800 text-slate-500 hover:text-rose-400 hover:border-rose-900/40 transition-all cursor-pointer"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            Is something stopping you ?
+          </button>
+
+          <button
+            onClick={handleDone}
+            className="flex items-center justify-center gap-2 px-6 py-4 text-sm font-black uppercase tracking-widest rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_30px_rgba(79,70,229,0.35)] active:scale-95 cursor-pointer"
+          >
+            <CheckCircle2 className="w-5 h-5" />
+            Mark Done
+          </button>
+        </div>
+
+
+        {/* FEAR OVERLAY */}
+        {showFear && createPortal(
+          <div className="fixed inset-0 z-[9999] bg-[#020617] flex flex-col">
+            
+            <div className="absolute top-8 right-8 z-[10000]">
+              <button
+                onClick={() => {
+                  setFearText("");
+                  setShowFear(false);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shadow-2xl"
+              >
+                <X className="w-4 h-4" />
+                Exit
+              </button>
+            </div>
+
+            <div className="flex-1 w-full h-full">
+              <WorryEaterSequenceWrapper
+                initialText={fearText}
+                onComplete={() => {
+                  setFearText("");
+                  setShowFear(false);
+                }}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    );
+  }
 }
 
 function ProblemSetModule() {
@@ -250,12 +379,13 @@ function ProblemSetModule() {
         const json = await res.json();
 
         // convert DB → UI shape
-        const mapped = json.nodes.map((n) => ({
+        const mapped = (json.nodes || []).map((n) => ({
           id: n.id,
           data: {
             label: n.label,
             priority: n.priority,
             friction: n.friction,
+            completed: n.completed || false,
           },
         }));
 

@@ -46,7 +46,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json(); // { nodeId }
+    const { nodeId } = await req.json();
 
     const set = await prisma.problemSet.findUnique({
       where: { id },
@@ -56,15 +56,26 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updatedNodes = (set.nodes || []).map((n) =>
-      n.id === body.nodeId ? { ...n, done: true } : n
+    const node = (set.nodes || []).find((n) => n.id === nodeId);
+
+    if (!node) {
+      return NextResponse.json({ error: "Invalid node" }, { status: 400 });
+    }
+
+    if (node.completed) {
+      return NextResponse.json(
+        { error: "Already completed" },
+        { status: 409 } // conflict
+      );
+    }
+
+    const updatedNodes = set.nodes.map((n) =>
+      n.id === nodeId ? { ...n, completed: true } : n
     );
 
     await prisma.problemSet.update({
       where: { id },
-      data: {
-        nodes: updatedNodes,
-      },
+      data: { nodes: updatedNodes },
     });
 
     return NextResponse.json({ success: true });
