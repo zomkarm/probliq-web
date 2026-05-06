@@ -28,13 +28,13 @@ export async function proxy(request) {
 
   // --- USER ROUTES ---
   const userToken = request.cookies.get('auth_token')?.value
-  const isUserAuthPage = path === '/login' || path === '/signup'
+  const isUserAuthPage = path === '/signin' || path === '/signup'
 
   if (isUserAuthPage && userToken) {
     try {
       await jwtVerify(userToken, new TextEncoder().encode(process.env.JWT_SECRET));
-      // If token is valid, redirect to dashboard
-      return NextResponse.redirect(new URL('/user/dashboard', request.url));
+      // If token is valid, redirect to home
+      return NextResponse.redirect(new URL('/user/home', request.url));
     } catch {
       // If token invalid, let them stay on signin/signup
       return NextResponse.next();

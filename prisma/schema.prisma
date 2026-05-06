@@ -19,6 +19,7 @@ model User {
   subscriptions  Subscription[]
   preferences UserPreference[]
   resetTokens PasswordResetToken[]
+  problemSets ProblemSet[]
 
   @@map("user")
 }
@@ -172,4 +173,25 @@ model ContactUs {
   created_at      DateTime  @default(now())
 
   @@map("contact_us")
+}
+
+
+model ProblemSet {
+  id           String   @id @default(uuid())
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  isAnonymous  Boolean  @default(false)
+  isPublic     Boolean @default(false)
+
+  nodes        Json     // [{ id, label, priority, friction }]
+  edges        Json     // [{ source, target }]
+
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("problem_set")
 }

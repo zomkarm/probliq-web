@@ -1,11 +1,20 @@
 import { create } from "zustand";
 
 export const useProblemStore = create((set) => ({
-  // original dump (step 1)
   originalProblems: [],
-
-  // current working set (step 2+)
   problems: [],
+
+  problemSetMeta: {
+    name: "",
+  },
+
+  setProblemSetMeta: (meta) =>
+    set((state) => ({
+      problemSetMeta: {
+        ...state.problemSetMeta,
+        ...meta,
+      },
+    })),
 
   setInitialProblems: (nodes) =>
     set({

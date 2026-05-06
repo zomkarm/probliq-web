@@ -39,7 +39,7 @@ export default function Home() {
     if(page === 'pq'){
       router.push('/user/pq')
     }else if(page === 'pq_view'){
-      router.push('/user/home/pq-view')
+      router.push('/user/pq-view')
     }else if(page === 'public_feed'){
       router.push('/user/home/public-feed')
     }
