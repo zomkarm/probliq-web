@@ -183,15 +183,67 @@ model ProblemSet {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name         String
-  isAnonymous  Boolean  @default(false)
-  isPublic     Boolean @default(false)
 
-  nodes        Json     // [{ id, label, priority, friction }]
-  edges        Json     // [{ source, target }]
+  isAnonymous  Boolean  @default(false)
+  isPublic     Boolean  @default(false)
 
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
+  problems     ProblemNode[]
+
   @@index([userId])
   @@map("problem_set")
+}
+
+model ProblemNode {
+  id            String   @id @default(uuid())
+
+  problemSetId  String
+  problemSet    ProblemSet @relation(fields: [problemSetId], references: [id], onDelete: Cascade)
+
+  label         String
+
+  priority      String?  // low / high
+  friction      String?  // easy / hard
+  category      String?  
+
+  orderIndex    Int @default(0)
+
+  completed     Boolean  @default(false)
+
+  rewardText    String? // "What improves if this gets solved"
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  solutionPaths ProblemSolutionPath[]
+
+  @@index([problemSetId])
+  @@index([category])
+
+  @@map("problem_node")
+}
+
+model ProblemSolutionPath {
+  id             String   @id @default(uuid())
+
+  problemNodeId  String
+  problemNode    ProblemNode @relation(fields: [problemNodeId], references: [id], onDelete: Cascade)
+
+  title          String
+  content        String
+
+  isSelected     Boolean @default(false)
+
+  sourceType     String?
+  // "internet"
+  // "personal"
+  // "mixed"
+
+  created_at     DateTime @default(now())
+
+  @@index([problemNodeId])
+
+  @@map("problem_solution_path")
 }

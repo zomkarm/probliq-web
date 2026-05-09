@@ -45,13 +45,16 @@ export default function ProblemSetList() {
           return;
         }
 
-        const mapped = (json.nodes || []).map((n) => ({
+        const mapped = (json.problems || []).map((n) => ({
           id: n.id,
           data: {
             label: n.label,
             priority: n.priority,
             friction: n.friction,
+            category: n.category,
             completed: n.completed || false,
+            plan: n.plan || "",
+            solutionPaths: n.solutionPaths || [],
           },
         }));
 
@@ -121,288 +124,175 @@ export default function ProblemSetList() {
   );
 }
 
-function ProblemSets({ problems, setId, onBack }) {
+function ProblemSets({ problems = [], setId, onBack }) {
+  const [items, setItems] = useState(Array.isArray(problems) ? problems : []);
+  const [activeProblem, setActiveProblem] = useState(null);
 
-  const [items, setItems] = useState(problems);
-  const [showFear, setShowFear] = useState(false);
-  const [fearText, setFearText] = useState("");
-  const [mode, setMode] = useState("welcome"); 
+  useEffect(() => {
+    setItems(Array.isArray(problems) ? problems : []);
+  }, [problems]);
 
-  const getScore = (p) => {
-    const { priority, friction } = p.data || {};
-    if (priority === "high" && friction === "easy") return 1;
-    if (priority === "high" && friction === "hard") return 2;
-    if (priority === "low" && friction === "easy") return 3;
-    return 4;
-  };
+  const grouped = useMemo(() => {
+    const map = {};
 
-  const sorted = useMemo(() => {
-    return [...items].sort((a, b) => getScore(a) - getScore(b));
+    (items || []).forEach((p) => {
+      if (!p?.data) return;
+
+      const key = p.data.category || "uncategorized";
+
+      if (!map[key]) map[key] = [];
+      map[key].push(p);
+    });
+
+    return map;
   }, [items]);
 
-  const currentIndex = useMemo(() => {
-    return sorted.findIndex((p) => !p.data.completed);
-  }, [sorted]);
-
-  const current = currentIndex === -1 ? null : sorted[currentIndex];
-
-  const handleDone = async () => {
+  const markDone = async (problemId) => {
     try {
       const res = await fetch(`/api/problem-set/${setId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodeId: current.id }),
+        body: JSON.stringify({ problemId }),
       });
 
-      const json = await res.json();
-
-      if (res.status === 409) {
-        toast.error("Already completed");
-
-        // force sync local state
-        setItems((prev) =>
-          prev.map((p) =>
-            p.id === current.id
-              ? { ...p, data: { ...p.data, completed: true } }
-              : p
-          )
-        );
-        return;
-      }
-
       if (!res.ok) {
-        toast.error("Failed to update");
+        toast.error("Update failed");
         return;
       }
 
-      // success
       setItems((prev) =>
-        prev.map((p) =>
-          p.id === current.id
+        (prev || []).map((p) =>
+          p.id === problemId
             ? { ...p, data: { ...p.data, completed: true } }
             : p
         )
       );
 
-      setMode("completed");
-
-      toast.success("Marked done");
-
+      toast.success("Done");
     } catch (err) {
       toast.error("Network error");
     }
   };
 
-  const consumeFear = () => {
-    setFearText("");
-    setShowFear(false);
-  };
-
-
-  if (!current) {
+  if (!items.length) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-6 text-slate-400">
-        <span>All tasks completed.</span>
-
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-6 py-3 text-sm font-black uppercase tracking-widest rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white"
-        >
-          <CheckCircle2 className="w-5 h-5" />
-          Back to Problem Sets
-        </button>
+      <div className="h-screen flex items-center justify-center text-slate-500">
+        No problems found
       </div>
     );
   }
 
-  if (mode === "welcome") {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center gap-6 text-slate-400">
-        <h2 className="text-xl font-bold text-white">Welcome back, Good to see you </h2>
+  return (
+    <div className="max-w-4xl mx-auto py-10 space-y-10 text-white">
 
-        <button
-          onClick={() => setMode("active")}
-          className="px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold"
-        >
-          Let’s Continue
+      <div className="flex justify-between items-center">
+        <button onClick={onBack} className="text-xs text-slate-400">
+          ← Back
         </button>
 
-        <button
-          onClick={onBack}
-          className="text-xs text-slate-500"
-        >
-          Back
-        </button>
+        <h1 className="font-bold">Problem Set</h1>
       </div>
-    );
-  }
 
-  if (mode === "completed") {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center gap-6 text-slate-400">
-        <h2 className="text-xl font-bold text-white">
-          Task completed, Congrats
-        </h2>
+      {activeProblem && (
+        <ProblemModal
+          problem={activeProblem}
+          setId={setId}
+          onClose={() => setActiveProblem(null)}
+          onDone={markDone}
+          setItems={setItems}
+        />
+      )}
 
-        <div className="flex gap-4">
-          <button
-            onClick={() => setMode("active")}
-            className="px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold cursor-pointer"
-          >
-            Let's Continue
-          </button>
+      <div className="space-y-10">
+        {Object.entries(grouped).map(([category, list]) => (
+          <div key={category} className="space-y-4">
 
-          <button
-            onClick={onBack}
-            className="px-6 py-3 rounded-xl border border-slate-700 text-slate-400 cursor-pointer"
-          >
-            Later
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (mode === "active") {
-    return (
-      <div className="max-w-2xl mx-auto space-y-12 py-12">
-        <div className="flex justify-start">
-          <button
-            onClick={onBack}
-            className="text-xs text-slate-500 hover:text-white cursor-pointer"
-          >
-            ← Back to sets
-          </button>
-        </div>
-        
-        {/* Header Signal */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
-            <Timer className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80">
-              Active Set
-            </span>
-          </div>
-
-          <p className="text-sm text-slate-500">
-            Focus on one problem. Ignore everything else.
-          </p>
-        </div>
-
-        {/* Task Card */}
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-600/20 rounded-[2.5rem] blur-xl opacity-60" />
-
-          <div className="relative p-10 border border-slate-800 rounded-[2rem] bg-[#020617]/90 text-center shadow-2xl backdrop-blur-xl">
-            
-            <div className="mb-6 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <span className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                {/*Task {currentIndex + 1} / {sorted.length}*/}Todays Problem to Tackle
-              </span>
-            </div>
-
-            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight tracking-tight">
-              {current.data?.label || "Untitled Task"}
+            <h2 className="text-xs uppercase tracking-widest text-slate-500">
+              {category}
             </h2>
 
-            <p className="mt-4 text-xs text-slate-600">
-              Execute. Don’t evaluate.
-            </p>
+            <div className="space-y-3">
+              {(list || []).map((p) => (
+                <div
+                  key={p.id}
+                  className="p-4 border border-slate-800 rounded-xl flex justify-between items-center bg-slate-900/30"
+                >
+                  <div>
+                    <div className="text-sm">{p?.data?.label}</div>
+                    <div className="text-xs text-slate-500">
+                      {p?.data?.priority} • {p?.data?.friction}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+
+                    <button
+                      onClick={() => setActiveProblem(p)}
+                      className="text-xs px-3 py-1 border border-slate-700 rounded-lg"
+                    >
+                      View
+                    </button>
+
+                    {!p?.data?.completed && (
+                      <button
+                        onClick={() => markDone(p.id)}
+                        className="text-xs px-3 py-1 bg-indigo-600 rounded-lg"
+                      >
+                        Done
+                      </button>
+                    )}
+
+                  </div>
+                </div>
+              ))}
+            </div>
+
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          
-          <button
-            onClick={() => setShowFear(true)}
-            className="flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold rounded-2xl border border-slate-800 text-slate-500 hover:text-rose-400 hover:border-rose-900/40 transition-all cursor-pointer"
-          >
-            <ShieldAlert className="w-4 h-4" />
-            Is something stopping you ?
-          </button>
-
-          <button
-            onClick={handleDone}
-            className="flex items-center justify-center gap-2 px-6 py-4 text-sm font-black uppercase tracking-widest rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_30px_rgba(79,70,229,0.35)] active:scale-95 cursor-pointer"
-          >
-            <CheckCircle2 className="w-5 h-5" />
-            Mark Done
-          </button>
-        </div>
-
-
-        {/* FEAR OVERLAY */}
-        {showFear && createPortal(
-          <div className="fixed inset-0 z-[9999] bg-[#020617] flex flex-col">
-            
-            <div className="absolute top-8 right-8 z-[10000]">
-              <button
-                onClick={() => {
-                  setFearText("");
-                  setShowFear(false);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shadow-2xl"
-              >
-                <X className="w-4 h-4" />
-                Exit
-              </button>
-            </div>
-
-            <div className="flex-1 w-full h-full">
-              <WorryEaterSequenceWrapper
-                initialText={fearText}
-                onComplete={() => {
-                  setFearText("");
-                  setShowFear(false);
-                }}
-              />
-            </div>
-          </div>,
-          document.body
-        )}
+        ))}
       </div>
-    );
-  }
+    </div>
+  );
 }
 
 function ProblemSetModule() {
   const [selectedId, setSelectedId] = useState(null);
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchSet = async (id) => {
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/problem-set/${id}`);
+      const json = await res.json();
+
+      const mapped = (json.problems || []).map((n) => ({
+        id: n.id,
+        data: {
+          label: n.label,
+          priority: n.priority,
+          friction: n.friction,
+          category: n.category,
+          completed: n.completed,
+          solutionPaths: n.solutionPaths || [],
+        },
+      }));
+
+      setData(mapped);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!selectedId) return;
-
-    const fetchSet = async () => {
-      try {
-        const res = await fetch(`/api/problem-set/${selectedId}`);
-        const json = await res.json();
-
-        // convert DB → UI shape
-        const mapped = (json.nodes || []).map((n) => ({
-          id: n.id,
-          data: {
-            label: n.label,
-            priority: n.priority,
-            friction: n.friction,
-            completed: n.completed || false,
-          },
-        }));
-
-        setData(mapped);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchSet();
+    if (selectedId) fetchSet(selectedId);
   }, [selectedId]);
 
   if (!selectedId) {
     return <ProblemSetList onSelect={setSelectedId} />;
   }
 
-  if (!data) {
+  if (loading || !data) {
     return (
       <div className="h-screen flex items-center justify-center text-slate-500">
         Loading set...
@@ -410,5 +300,239 @@ function ProblemSetModule() {
     );
   }
 
-  return <ProblemSets problems={data} />;
+  return (
+    <ProblemSetViewer
+      problems={data}
+      onBack={() => {
+        setSelectedId(null);
+        setData(null);
+      }}
+      onRefresh={() => fetchSet(selectedId)}
+    />
+  );
+}
+
+
+function ProblemSetViewer({ problems, onBack }) {
+  const [items, setItems] = useState(problems);
+  const [activeProblem, setActiveProblem] = useState(null);
+
+  const grouped = useMemo(() => {
+    const map = {};
+
+    items.forEach((p) => {
+      const key = p.data?.category || "uncategorized";
+
+      if (!map[key]) map[key] = [];
+      map[key].push(p);
+    });
+
+    return map;
+  }, [items]);
+
+  const markDone = async (id) => {
+    try {
+      const res = await fetch(`/api/problem-set/${items[0].data.problemSetId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ problemId: id }),
+      });
+
+      if (!res.ok) return;
+
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, data: { ...p.data, completed: true } }
+            : p
+        )
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto py-10 space-y-10">
+
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <button onClick={onBack} className="text-xs text-slate-500">
+          ← Back
+        </button>
+
+        <h1 className="text-xl font-bold text-white">
+          Problem Set
+        </h1>
+      </div>
+
+      {/* If modal open */}
+      {activeProblem && (
+        <ProblemModal
+          problem={activeProblem}
+          onClose={() => setActiveProblem(null)}
+          onDone={markDone}
+        />
+      )}
+
+      {/* Groups */}
+      <div className="space-y-10">
+        {Object.entries(grouped).map(([category, list]) => (
+          <div key={category} className="space-y-4">
+
+            <h2 className="text-sm uppercase tracking-widest text-slate-500">
+              {category}
+            </h2>
+
+            <div className="space-y-3">
+              {list.map((p) => (
+                <ProblemCard
+                  key={p.id}
+                  problem={p}
+                  onOpen={() => setActiveProblem(p)}
+                  onDone={() => markDone(p.id)}
+                />
+              ))}
+            </div>
+
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+function ProblemCard({ problem, onOpen, onDone }) {
+  return (
+    <div className="p-4 border border-slate-800 rounded-xl bg-slate-900/40 flex justify-between items-center">
+
+      <div>
+        <div className="text-white text-sm font-medium">
+          {problem.data.label}
+        </div>
+
+        <div className="text-xs text-slate-500">
+          {problem.data.priority} • {problem.data.friction}
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+
+        <button
+          onClick={onOpen}
+          className="text-xs px-3 py-1 border border-slate-700 rounded-lg"
+        >
+          View
+        </button>
+
+        {!problem.data.completed && (
+          <button
+            onClick={onDone}
+            className="text-xs px-3 py-1 bg-indigo-600 text-white rounded-lg"
+          >
+            Done
+          </button>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+
+function ProblemModal({ problem, setId, onClose, onDone, setItems }) {
+  const [tab, setTab] = useState("plan");
+  const [planText, setPlanText] = useState(problem?.data?.plan || "");
+
+  const savePlan = async () => {
+    try {
+      const res = await fetch(`/api/problem-set/${setId}/plan`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problemId: problem.id,
+          plan: planText,
+        }),
+      });
+
+      if (!res.ok) {
+        toast.error("Failed to save plan");
+        return;
+      }
+
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === problem.id
+            ? { ...p, data: { ...p.data, plan: planText } }
+            : p
+        )
+      );
+
+      toast.success("Plan saved");
+    } catch (err) {
+      toast.error("Network error");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+      <div className="w-[600px] bg-[#020617] border border-slate-800 rounded-2xl p-6 space-y-4">
+
+        {/* Header */}
+        <div className="flex justify-between">
+          <h3 className="font-bold">{problem.data.label}</h3>
+          <button onClick={onClose}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-4 text-xs">
+          <button onClick={() => setTab("plan")}>Plan</button>
+          <button onClick={() => setTab("solution")}>Solution</button>
+        </div>
+
+        {/* Content */}
+        <div className="text-sm text-slate-300 min-h-[150px]">
+
+          {tab === "plan" && (
+            <div className="space-y-3">
+              <textarea
+                value={planText}
+                onChange={(e) => setPlanText(e.target.value)}
+                className="w-full p-2 bg-slate-900 border border-slate-700 rounded"
+                placeholder="Write your plan..."
+              />
+
+              <button
+                onClick={savePlan}
+                className="px-3 py-1 bg-indigo-600 rounded"
+              >
+                Save Plan
+              </button>
+            </div>
+          )}
+
+          {tab === "solution" && (
+            <div>
+              {problem.data.solutionPaths?.length
+                ? problem.data.solutionPaths.map((s, i) => (
+                    <div key={i}>• {s.title}</div>
+                  ))
+                : "No solution yet"}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => onDone(problem.id)}
+            className="px-3 py-1 bg-indigo-600 rounded"
+          >
+            Mark Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

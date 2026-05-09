@@ -35,29 +35,68 @@ export async function POST(req) {
     const user = await getUserFromToken();
 
     if (!user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
-    const { name, nodes, edges } = body;
 
-    if (!name || !nodes) {
-      console.log("BAD pAYLOAD")
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    const {
+      name,
+      nodes,
+      isAnonymous,
+      isPublic,
+    } = body;
+
+    if (!name || !Array.isArray(nodes)) {
+      return NextResponse.json(
+        { error: "Invalid payload" },
+        { status: 400 }
+      );
     }
 
     const problemSet = await prisma.problemSet.create({
       data: {
         userId: user.id,
         name,
-        nodes,
-        edges: edges || [],
+
+        isAnonymous: isAnonymous || false,
+        isPublic: isPublic || false,
+
+        problems: {
+          create: nodes.map((node) => ({
+            label: node.label,
+
+            priority: node.priority || null,
+            friction: node.friction || null,
+            category: node.category || null,
+
+            orderIndex: node.orderIndex || 0,
+
+            completed: false,
+
+            rewardText: node.rewardText || null,
+          })),
+        },
+      },
+
+      include: {
+        problems: true,
       },
     });
 
-    return NextResponse.json(problemSet, { status: 201 });
+    return NextResponse.json(problemSet, {
+      status: 201,
+    });
+
   } catch (err) {
-    console.error("Error creating problem set:", err);
+    console.error(
+      "Error creating problem set:",
+      err
+    );
+
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

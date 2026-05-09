@@ -17,7 +17,7 @@ import WorryEaterSequenceWrapper from '@/components/ui/shared/WorryEaterSequence
 import { 
   ChevronLeft, ChevronRight, CheckCircle2, Sparkles, Plus,
   RefreshCcw, Trash2, Copy, Terminal, Send, X, Timer,
-  Zap, ListOrdered, BarChart3, Target, ShieldAlert,         
+  Zap, ListOrdered, BarChart3, Target, ShieldAlert, ChevronUp, ChevronDown       
  } from "lucide-react";
  import { useRouter } from 'next/navigation'
 
@@ -86,7 +86,70 @@ const STEPS = [
   {
     key: "success",
     title: "Completion",
-    desc: "Problem Evaluation Complete",
+    desc: "Session Complete",
+  },
+];
+
+const CATEGORIES = [
+  {
+    key: "health_physical",
+    label: "Health (physical)",
+  },
+  {
+    key: "mental_emotional",
+    label: "Mental / Emotional",
+  },
+  {
+    key: "financial",
+    label: "Financial",
+  },
+  {
+    key: "career_work",
+    label: "Career / Work",
+  },
+  {
+    key: "education_learning",
+    label: "Education / Learning",
+  },
+  {
+    key: "relationships",
+    label: "Relationships (family, friends, partner)",
+  },
+  {
+    key: "social_communication",
+    label: "Social / Communication",
+  },
+  {
+    key: "lifestyle_habits",
+    label: "Lifestyle / Habits",
+  },
+  {
+    key: "productivity_time",
+    label: "Productivity / Time",
+  },
+  {
+    key: "environment",
+    label: "Environment (home, workspace)",
+  },
+  {
+    key: "legal_compliance",
+    label: "Legal / Compliance",
+  },
+  {
+    key: "technology_digital",
+    label: "Technology / Digital",
+  },
+  {
+    key: "travel_relocation",
+    label: "Travel / Relocation",
+  },
+  {
+    key: "personal_growth",
+    label: "Personal Growth (identity, purpose)",
+  },
+  {
+    key: "recreation_leisure",
+    label: "Recreation / Leisure",
   },
 ];
 
@@ -564,11 +627,15 @@ return (
   );
 }
 
+const CATEGORY_MAP = Object.fromEntries(
+  CATEGORIES.map((c) => [c.key, c.label])
+);
+
 function PriorityUI() {
   const { problems, setProblems } = useProblemStore();
 
   const updateField = (id, field, value) => {
-    const updated = problems.map((p) =>
+    let updated = problems.map((p) =>
       p.id === id
         ? {
             ...p,
@@ -579,6 +646,40 @@ function PriorityUI() {
           }
         : p
     );
+
+    // normalize category indexes
+    if (field === "category") {
+      const grouped = {};
+
+      updated.forEach((p) => {
+        const category =
+          p.data?.category || "uncategorized";
+
+        if (!grouped[category]) {
+          grouped[category] = [];
+        }
+
+        grouped[category].push(p);
+      });
+
+      updated = Object.values(grouped).flatMap(
+        (items) =>
+          [...items]
+            .sort(
+              (a, b) =>
+                (a.data?.orderIndex || 0) -
+                (b.data?.orderIndex || 0)
+            )
+            .map((p, index) => ({
+              ...p,
+              data: {
+                ...p.data,
+                orderIndex: index,
+              },
+            }))
+      );
+    }
+
     setProblems(updated);
   };
 
@@ -598,9 +699,148 @@ function PriorityUI() {
     return "Backlog";
   };
 
-  const sorted = useMemo(() => {
-    return [...problems].sort((a, b) => getScore(a) - getScore(b));
+  const grouped = useMemo(() => {
+    const groups = {};
+
+    problems.forEach((p) => {
+      const categoryKey =
+        p.data?.category || "uncategorized";
+
+      const categoryLabel =
+        CATEGORY_MAP[categoryKey] || "Uncategorized";
+
+      if (!groups[categoryLabel]) {
+        groups[categoryLabel] = [];
+      }
+
+      groups[categoryLabel].push(p);
+    });
+
+    // local category sorting only
+    Object.keys(groups).forEach((key) => {
+      groups[key] = [...groups[key]].sort(
+        (a, b) =>
+          (a.data?.orderIndex || 0) -
+          (b.data?.orderIndex || 0)
+      );
+    });
+
+    return groups;
   }, [problems]);
+
+  const moveProblem = (problemId, direction) => {
+    const currentProblem = problems.find(
+      (p) => p.id === problemId
+    );
+
+    if (!currentProblem) return;
+
+    const category =
+      currentProblem.data?.category || "uncategorized";
+
+    // category items only
+    const categoryItems = problems
+      .filter(
+        (p) =>
+          (p.data?.category || "uncategorized") === category
+      )
+      .sort(
+        (a, b) =>
+          (a.data?.orderIndex || 0) -
+          (b.data?.orderIndex || 0)
+      );
+
+    const currentIndex = categoryItems.findIndex(
+      (p) => p.id === problemId
+    );
+
+    const targetIndex =
+      direction === "up"
+        ? currentIndex - 1
+        : currentIndex + 1;
+
+    if (
+      targetIndex < 0 ||
+      targetIndex >= categoryItems.length
+    ) {
+      return;
+    }
+
+    // swap array positions
+    const reordered = [...categoryItems];
+
+    [
+      reordered[currentIndex],
+      reordered[targetIndex],
+    ] = [
+      reordered[targetIndex],
+      reordered[currentIndex],
+    ];
+
+    // rebuild category order indexes
+    const categoryOrderMap = {};
+
+    reordered.forEach((item, index) => {
+      categoryOrderMap[item.id] = index;
+    });
+
+    const updated = problems.map((p) => {
+      const belongsToCategory =
+        (p.data?.category || "uncategorized") === category;
+
+      if (!belongsToCategory) {
+        return p;
+      }
+
+      return {
+        ...p,
+        data: {
+          ...p.data,
+          orderIndex: categoryOrderMap[p.id],
+        },
+      };
+    });
+
+    setProblems(updated);
+  };
+
+  useEffect(() => {
+    const needsInitialization = problems.some(
+      (p) => p.data?.orderIndex === undefined
+    );
+
+    if (!needsInitialization) return;
+
+    const grouped = {};
+
+    // group by category
+    problems.forEach((p) => {
+      const category =
+        p.data?.category || "uncategorized";
+
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+
+      grouped[category].push(p);
+    });
+
+    // assign local order indexes
+    const initialized = Object.values(grouped)
+      .flatMap((items) =>
+        items
+          .sort((a, b) => getScore(a) - getScore(b))
+          .map((p, index) => ({
+            ...p,
+            data: {
+              ...p.data,
+              orderIndex: index,
+            },
+          }))
+      );
+
+    setProblems(initialized);
+  }, []);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -675,6 +915,30 @@ function PriorityUI() {
                   </button>
                 </div>
               </div>
+
+              {/* Category */}
+              <div className="space-y-2 sm:col-span-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                  Category
+                </span>
+
+                <select
+                  value={p.data?.category || ""}
+                  onChange={(e) =>
+                    updateField(p.id, "category", e.target.value)
+                  }
+                  className="w-full px-4 py-3 rounded-xl bg-[#020617] border border-slate-800 text-sm text-slate-300 outline-none focus:border-indigo-500 transition-all"
+                >
+                  <option value="">Select Category</option>
+
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat.key} value={cat.key}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
             </div>
           </div>
         ))}
@@ -685,41 +949,91 @@ function PriorityUI() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <ListOrdered className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-300">Execution Order</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-300">Problem Structure</h3>
           </div>
           <div className="px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 font-bold">
-            Sorted Alpha
+            Category View
           </div>
         </div>
 
-        <div className="space-y-3">
-          {sorted.map((p, i) => (
-            <div
-              key={p.id}
-              className="group flex items-center gap-4 p-4 border border-slate-800/40 rounded-2xl bg-slate-900/20 hover:bg-slate-900/40 transition-all shadow-sm"
-            >
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-black text-indigo-500 group-hover:border-indigo-500/30 transition-colors">
-                {i + 1}
+        <div className="space-y-8">
+          {Object.entries(grouped).map(([category, items]) => (
+            <div key={category} className="space-y-4">
+              
+              {/* Category Header */}
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-800" />
+
+                <div className="px-3 py-1 rounded-full border border-slate-800 bg-slate-900 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                  {category}
+                </div>
+
+                <div className="h-px flex-1 bg-slate-800" />
               </div>
 
-              <div className="flex-1 text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
-                {p.data?.label}
-              </div>
+              {/* Stack */}
+              <div className="space-y-3">
+                {items
+                  .map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="group flex items-center gap-4 p-4 border border-slate-800/40 rounded-2xl bg-slate-900/20 hover:bg-slate-900/40 transition-all shadow-sm"
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[11px] font-black text-indigo-500 group-hover:border-indigo-500/30 transition-colors">
+                      {i + 1}
+                    </div>
 
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-[10px] font-black uppercase tracking-tighter text-slate-500 group-hover:text-slate-400 transition-colors">
-                <BarChart3 className="w-3 h-3" />
-                {getLabel(p)}
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                        {p.data?.label}
+                      </div>
+
+                      <div className="mt-1 text-[10px] uppercase tracking-wider text-slate-600">
+                        {p.data?.priority || "low"} priority •{" "}
+                        {p.data?.friction || "hard"} friction
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+  
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => moveProblem(p.id, "up")}
+                          className="p-1 rounded-md border border-slate-800 bg-slate-950 text-slate-500 hover:text-white transition-all"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+
+                        <button
+                          onClick={() => moveProblem(p.id, "down")}
+                          className="p-1 rounded-md border border-slate-800 bg-slate-950 text-slate-500 hover:text-white transition-all"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-[10px] font-black uppercase tracking-tighter text-slate-500">
+                        <BarChart3 className="w-3 h-3" />
+                        {getLabel(p)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
 
-          {sorted.length === 0 && (
+          {problems.length === 0 && (
             <div className="py-20 text-center space-y-3">
               <Zap className="w-8 h-8 text-slate-700 mx-auto" />
-              <p className="text-xs text-slate-600 font-medium">Add and classify problems to see your sequence.</p>
+
+              <p className="text-xs text-slate-600 font-medium">
+                Add and classify problems to see your structure.
+              </p>
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
@@ -737,14 +1051,21 @@ function CompletionUI() {
       const payload = {
         name: problemSetMeta.name,
         nodes: problems.map((p) => ({
-          id: p.id,
           label: p.data?.label || "",
           priority: p.data?.priority || null,
           friction: p.data?.friction || null,
+          category: p.data?.category || null,
+          orderIndex: p.data?.orderIndex || 0,
         })),
-        edges: [], // you are not persisting edges yet
       };
-
+        console.log(
+          problems.map((p) => ({
+            label: p.data?.label,
+            category: p.data?.category,
+            orderIndex: p.data?.orderIndex,
+          }))
+        );
+        console.log(payload)
       const res = await fetch("/api/problem-set", {
         method: "POST",
         headers: {
@@ -820,7 +1141,7 @@ function getInstruction(step) {
     case 2:
       return "Decide what matters and what hurts.";
     case 3:
-      return "Ignore everything except the next move.";
+      return "You now have a clearer map of the situation.";
     default:
       return "";
   }
